@@ -3,24 +3,40 @@ import type {
   AIInvestigationResponse,
 } from "../types/aiInvestigation";
 
-const AI_API_URL = "http://localhost:8787/api/ai-investigation";
+const AI_ENDPOINT = "/api/ai-investigation";
 
 export async function generateAIInvestigationBrief(
   evidence: AIInvestigationEvidencePacket,
 ): Promise<AIInvestigationResponse> {
-  const response = await fetch(AI_API_URL, {
+  const response = await fetch(AI_ENDPOINT, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ evidence }),
   });
 
-  const payload = await response.json().catch(() => null);
+  let data: unknown;
 
-  if (!response.ok) {
+  try {
+    data = await response.json();
+  } catch {
     throw new Error(
-      payload?.error || `AI investigation service failed with status ${response.status}.`,
+      `AI service returned an invalid response (${response.status}).`,
     );
   }
 
-  return payload as AIInvestigationResponse;
+  if (!response.ok) {
+    const message =
+      typeof data === "object" &&
+      data !== null &&
+      "error" in data &&
+      typeof data.error === "string"
+        ? data.error
+        : `AI investigation failed with status ${response.status}.`;
+
+    throw new Error(message);
+  }
+
+  return data as AIInvestigationResponse;
 }
